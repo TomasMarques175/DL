@@ -17,8 +17,6 @@ class LinearModel(object):
         raise NotImplementedError
 
     def train_epoch(self, X, y, **kwargs):
-        print(f"X: {X.shape}")
-        print(f"y: {y.shape}")
         for x_i, y_i in zip(X, y):
             self.update_weight(x_i, y_i, **kwargs)
 
@@ -39,23 +37,37 @@ class LinearModel(object):
         return n_correct / n_possible
 
 class Perceptron(LinearModel):
+    """ def perceptron_epoch(inputs, labels, w, eta):
+    mistakes = 0
+    for x, y in zip(inputs, labels):
+        y_hat = 1 if w.dot(x) >= 0 else -1
+        if y_hat != y:
+            mistakes += 1
+            # Perceptron update.
+            w += eta * y * x
+    print("Mistakes: %d" % mistakes)    
+    return mistakes, w """
+
     def update_weight(self, x_i, y_i, **kwargs):
         """
         x_i (n_features): a single training example
         y_i (scalar): the gold label for that example
         other arguments are ignored
         """
+        # x_i is a 785x1 vector
+        # y_i is a scalar
+        # self.W is a 4x785 matrix
 
-        x_i = x_i.reshape(1, -1)
-        print(f"x_i: {x_i.shape}")
-        print(f"W: {self.W.shape}")
-        print(f"y_i: {y_i}")
+        y_hat = np.dot(self.W, x_i)
+        index = np.argmax(y_hat)
 
-        if y_i != np.argmax(np.dot(self.W, x_i)):
-            self.W = self.W + y_i * x_i
-
-        # Q1.1a
-        raise NotImplementedError
+        if y_i != y_hat[index]:
+            y = np.zeros(y_hat.shape[0])
+            y[index] = y_i
+            x_i = x_i.reshape(1,-1)
+            y = y.reshape(-1,1)
+            #print(f"y.dot(x_i): {y.dot(x_i)}")
+            self.W += y.dot(x_i)
 
 class LogisticRegression(LinearModel):
     def update_weight(self, x_i, y_i, learning_rate=0.001):
