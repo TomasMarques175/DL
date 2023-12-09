@@ -60,10 +60,12 @@ class Perceptron(LinearModel):
 
         y_hat = np.dot(self.W, x_i)
         index = np.argmax(y_hat)
+        #print(f"y_hat: {y_hat}")
+        #print(f"y_hat[index]: {y_hat[index]}")
 
-        if y_i != y_hat[index]:
+        if y_i != index:
             y = np.zeros(y_hat.shape[0])
-            y[index] = y_i
+            y[y_i] = 1
             x_i = x_i.reshape(1,-1)
             y = y.reshape(-1,1)
             #print(f"y.dot(x_i): {y.dot(x_i)}")
@@ -170,6 +172,11 @@ def main():
         train_order = np.random.permutation(train_X.shape[0])
         train_X = train_X[train_order]
         train_y = train_y[train_order]
+
+        if i == 1:
+            print(f"train_X.shape: {train_X.shape}")
+            print(f"train_y: {train_y}")
+            print(f"train_y.shape: {train_y.shape}")
         if opt.model == 'mlp':
             loss = model.train_epoch(
                 train_X,
