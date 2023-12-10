@@ -19,6 +19,8 @@ class LinearModel(object):
 
     def train_epoch(self, X, y, **kwargs):
         for x_i, y_i in zip(X, y):
+            # x_i is a 785x1 vector
+            # y_i is a scalar
             self.update_weight(x_i, y_i, **kwargs)
 
     def predict(self, X):
@@ -37,6 +39,7 @@ class LinearModel(object):
         n_possible = y.shape[0]
         return n_correct / n_possible
 
+
 class Perceptron(LinearModel):
     def update_weight(self, x_i, y_i, **kwargs):
         """
@@ -48,14 +51,16 @@ class Perceptron(LinearModel):
         # y_i is a scalar
         # self.W is a 4x785 matrix
 
-        y_hat = np.argmax(np.dot(self.W, x_i))
+        y_hat = self.predict(x_i)
+
+        # Update all weights if prediction is wrong
         if y_i != y_hat:
             self.W[y_i] += x_i
             self.W[y_hat] -= x_i
 
 
 class LogisticRegression(LinearModel):
-    def update_weight(self, x_i, y_i, learning_rate=0.001):
+    def update_weight(self, x_i, y_i, learning_rate):
         """
         x_i (n_features): a single training example
         y_i: the gold label for that example
@@ -65,19 +70,19 @@ class LogisticRegression(LinearModel):
         # y_i is a scalar
         # self.W is a 4x785 matrix
 
-        """   y_hat = np.argmax(np.dot(self.W, x_i))
+        # Get probability scores according to the model (num_labels x 1).
+        label_scores = np.expand_dims(np.dot(self.W, x_i), axis = 1)
 
-        if y_i != y_hat:
-            self.W[y_i] -= learning_rate * x_i*(y_i - sigmoid(np.dot(self.W[y_i], x_i)))"""
-        
-        # Compute probability y_hat
-        y_hat = 1 / (1 + np.exp(-np.argmax(np.dot(self.W, x_i))))
-        
-        # Compute gradient
-        gradient = (y_i - y_hat) * x_i
-        
-        # Update weights:
-        self.W[y_i] += learning_rate * gradient
+        # One-hot encode true label (num_labels x 1).
+        y_one_hot = np.zeros((np.size(self.W, 0),1))
+        y_one_hot[y_i] = 1
+
+        # Softmax function
+        # This gives the label probabilities according to the model (num_labels x 1).
+        label_probabilities = np.exp(label_scores) / np.sum(np.exp(label_scores))
+
+        # SGD update. W is num_labels x num_features.
+        self.W += learning_rate * (y_one_hot - label_probabilities).dot(np.expand_dims(x_i, axis = 1).T)
 
 
 class MLP(object):
@@ -85,14 +90,31 @@ class MLP(object):
     # linear models with no changes to the training loop or evaluation code
     # in main().
     def __init__(self, n_classes, n_features, hidden_size):
-        # Initialize an MLP with a single hidden layer.
-        raise NotImplementedError
+        # First is input size, last is output size.
+        mu, sigma = 0.1, 0.1 # mean and standard deviation
+
+        # Initialize weights with correct shapes 
+        W1 = np.random.normal(mu, sigma, (hidden_size, n_features))
+        b1 = np.zeros(hidden_size)
+
+        W2 = np.random.normal(mu, sigma, (n_classes, hidden_size))
+        b2 = np.zeros(n_classes)
+
+        self.W = [W1, W2]
+        self.b = [b1, b2]
 
     def predict(self, X):
         # Compute the forward pass of the network. At prediction time, there is
         # no need to save the values of hidden nodes, whereas this is required
         # at training time.
-        raise NotImplementedError
+        predicted_labels = []
+        for x in X:
+            # Compute forward pass and get the class with the highest probability
+            output, _ = self.forward(x)
+            y_hat = np.argmax(output)
+            predicted_labels.append(y_hat)
+        predicted_labels = np.array(predicted_labels)
+        return predicted_labels
 
     def evaluate(self, X, y):
         """
@@ -105,11 +127,86 @@ class MLP(object):
         n_possible = y.shape[0]
         return n_correct / n_possible
 
-    def train_epoch(self, X, y, learning_rate=0.001):
+    def backward(self, x, y, output, hiddens):
+        num_layers = len(self.W)
+
+        max = np.max(output)
+        probs = np.exp(output - max) / np.sum(np.exp(output - max))
+        grad_z = probs - y  
+        
+        grad_weights = []
+        grad_biases = []
+        
+        # Backpropagate gradient computations 
+        for i in range(num_layers-1, -1, -1):
+            
+            # Gradient of hidden parameters.
+            h = x if i == 0 else hiddens[i-1]
+            grad_weights.append(grad_z[:, None].dot(h[:, None].T))
+            grad_biases.append(grad_z)
+
+            # Gradient of hidden layer below.
+            grad_h = self.W[i].T.dot(grad_z)
+
+            # Gradient of hidden layer below before activation.
+            grad_z = grad_h * (1-h**2)   # Grad of loss wrt z3.
+
+        # Making gradient vectors have the correct order
+        grad_weights.reverse()
+        grad_biases.reverse()
+        return grad_weights, grad_biases
+
+    def forward(self, x):
+        num_layers = len(self.W)
+        # Activation function (relu)
+        g = lambda x: np.maximum(0, x)
+        hiddens = []
+        # compute hidden layers
+        for i in range(num_layers):
+                h = x if i == 0 else hiddens[i-1]
+                z = self.W[i].dot(h) + self.b[i]
+                if i < num_layers-1:  # Assuming the output layer has no activation.
+                    hiddens.append(g(z))
+        #compute output
+        output = z
+
+        return output, hiddens
+
+    def compute_loss(self, output, y):
+        # compute loss
+        max = np.max(output)
+        probs = np.exp(output - max) / np.sum(np.exp(output - max))
+        loss = -y.dot(np.log(probs))
+        return loss
+
+    def train_epoch(self, X, y, learning_rate):
         """
         Dont forget to return the loss of the epoch.
         """
-        raise NotImplementedError
+        num_layers = len(self.W)
+        total_loss = 0
+        # For each observation and target
+        for x, y in zip(X, y):
+            # One-hot encode true label (num_labels x 1).
+            y_one_hot = np.zeros((np.size(self.W[-1], 0),1))
+            y_one_hot[y] = 1
+            y_one_hot = y_one_hot.reshape(-1,)
+
+            # Comoute forward pass
+            output, hiddens = self.forward(x)
+
+            # Compute Loss and Update total loss
+            loss = self.compute_loss(output, y_one_hot)
+            total_loss += loss
+            # Compute backpropagation
+            grad_weights, grad_biases = self.backward(x, y_one_hot, output, hiddens)
+            
+            # Update weights
+            for i in range(num_layers):
+                self.W[i] -= learning_rate*grad_weights[i]
+                self.b[i] -= learning_rate*grad_biases[i]
+        
+        return total_loss
 
 
 def plot(epochs, train_accs, val_accs):
@@ -133,7 +230,7 @@ def main():
     parser.add_argument('model',
                         choices=['perceptron', 'logistic_regression', 'mlp'],
                         help="Which model should the script run?")
-    parser.add_argument('-epochs', default=1000, type=int,
+    parser.add_argument('-epochs', default=20, type=int,
                         help="""Number of epochs to train for. You should not
                         need to change this value for your plots.""")
     parser.add_argument('-hidden_size', type=int, default=200,
@@ -172,10 +269,6 @@ def main():
         train_X = train_X[train_order]
         train_y = train_y[train_order]
 
-        if i == 1:
-            print(f"train_X.shape: {train_X.shape}")
-            print(f"train_y: {train_y}")
-            print(f"train_y.shape: {train_y.shape}")
         if opt.model == 'mlp':
             loss = model.train_epoch(
                 train_X,
