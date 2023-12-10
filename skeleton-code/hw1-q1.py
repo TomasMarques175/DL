@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 import utils
 
+
 class LinearModel(object):
     def __init__(self, n_classes, n_features, **kwargs):
         self.W = np.zeros((n_classes, n_features))
@@ -37,17 +38,6 @@ class LinearModel(object):
         return n_correct / n_possible
 
 class Perceptron(LinearModel):
-    """ def perceptron_epoch(inputs, labels, w, eta):
-    mistakes = 0
-    for x, y in zip(inputs, labels):
-        y_hat = 1 if w.dot(x) >= 0 else -1
-        if y_hat != y:
-            mistakes += 1
-            # Perceptron update.
-            w += eta * y * x
-    print("Mistakes: %d" % mistakes)    
-    return mistakes, w """
-
     def update_weight(self, x_i, y_i, **kwargs):
         """
         x_i (n_features): a single training example
@@ -58,18 +48,11 @@ class Perceptron(LinearModel):
         # y_i is a scalar
         # self.W is a 4x785 matrix
 
-        y_hat = np.dot(self.W, x_i)
-        index = np.argmax(y_hat)
-        #print(f"y_hat: {y_hat}")
-        #print(f"y_hat[index]: {y_hat[index]}")
+        y_hat = np.argmax(np.dot(self.W, x_i))
+        if y_i != y_hat:
+            self.W[y_i] += x_i
+            self.W[y_hat] -= x_i
 
-        if y_i != index:
-            y = np.zeros(y_hat.shape[0])
-            y[y_i] = 1
-            x_i = x_i.reshape(1,-1)
-            y = y.reshape(-1,1)
-            #print(f"y.dot(x_i): {y.dot(x_i)}")
-            self.W += y.dot(x_i)
 
 class LogisticRegression(LinearModel):
     def update_weight(self, x_i, y_i, learning_rate=0.001):
@@ -78,8 +61,24 @@ class LogisticRegression(LinearModel):
         y_i: the gold label for that example
         learning_rate (float): keep it at the default value for your plots
         """
-        # Q1.1b
-        raise NotImplementedError
+        # x_i is a 785x1 vector
+        # y_i is a scalar
+        # self.W is a 4x785 matrix
+
+        """   y_hat = np.argmax(np.dot(self.W, x_i))
+
+        if y_i != y_hat:
+            self.W[y_i] -= learning_rate * x_i*(y_i - sigmoid(np.dot(self.W[y_i], x_i)))"""
+        
+        # Compute probability y_hat
+        y_hat = 1 / (1 + np.exp(-np.argmax(np.dot(self.W, x_i))))
+        
+        # Compute gradient
+        gradient = (y_i - y_hat) * x_i
+        
+        # Update weights:
+        self.W[y_i] += learning_rate * gradient
+
 
 class MLP(object):
     # Q3.2b. This MLP skeleton code allows the MLP to be used in place of the
@@ -134,7 +133,7 @@ def main():
     parser.add_argument('model',
                         choices=['perceptron', 'logistic_regression', 'mlp'],
                         help="Which model should the script run?")
-    parser.add_argument('-epochs', default=20, type=int,
+    parser.add_argument('-epochs', default=1000, type=int,
                         help="""Number of epochs to train for. You should not
                         need to change this value for your plots.""")
     parser.add_argument('-hidden_size', type=int, default=200,
