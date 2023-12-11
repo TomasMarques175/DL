@@ -134,10 +134,10 @@ class MLP(object):
         hiddens = []
         # compute hidden layers
         for i in range(num_layers):
-                h = x if i == 0 else hiddens[i-1]
-                z = self.W[i].dot(h) + self.b[i]
-                if i < num_layers-1:  # Assuming the output layer has no activation.
-                    hiddens.append(g(z))
+            h = x if i == 0 else hiddens[i-1]
+            z = self.W[i].dot(h) + self.b[i]
+            if i < num_layers-1:  # Assuming the output layer has no activation.
+                hiddens.append(g(z))
         #compute output
         output = z
 
@@ -145,26 +145,26 @@ class MLP(object):
 
     def compute_loss(self, output, y):
         # compute loss
-        max = np.max(output)
-        probs = np.exp(output - max) / np.sum(np.exp(output - max))
+        max_output = np.max(output)
+        probs = np.exp(output - max_output) / np.sum(np.exp(output - max_output))
         loss = -y.dot(np.log(probs))
         return loss
     
     def backward(self, x, y, output, hiddens):
         num_layers = len(self.W)
 
-        max = np.max(output)
-        probs = np.exp(output - max) / np.sum(np.exp(output - max))
+        max_output = np.max(output)
+        probs = np.exp(output - max_output) / np.sum(np.exp(output - max_output))
         grad_z = probs - y  
         
         grad_weights = []
         grad_biases = []
         
-        # Backpropagate gradient computations 
+        # Backpropagate gradient computations
         for i in range(num_layers-1, -1, -1):
-            
             # Gradient of hidden parameters.
             h = x if i == 0 else hiddens[i-1]
+
             grad_weights.append(grad_z[:, None].dot(h[:, None].T))
             grad_biases.append(grad_z)
 
@@ -173,7 +173,7 @@ class MLP(object):
 
             # Gradient of hidden layer below before activation.
             grad_z = grad_h * np.where(h < 0, 0, 1)   # Grad of loss wrt z3.
-        
+
         # Making gradient vectors have the correct order
         grad_weights.reverse()
         grad_biases.reverse()
@@ -184,6 +184,7 @@ class MLP(object):
         Dont forget to return the loss of the epoch.
         """
         num_layers = len(self.W)
+        print(num_layers)
         total_loss = 0
         # For each observation and target
         for x, y in zip(X, y):
@@ -198,15 +199,15 @@ class MLP(object):
             # Compute Loss and Update total loss
             loss = self.compute_loss(output, y_one_hot)
             total_loss += loss
+
             # Compute backpropagation
             grad_weights, grad_biases = self.backward(x, y_one_hot, output, hiddens)
-            
+
             # Update weights
             for i in range(num_layers):
                 self.W[i] -= learning_rate*grad_weights[i]
                 self.b[i] -= learning_rate*grad_biases[i]
-        
-        return total_loss
+        return total_loss / len(X)
 
 
 def plot(epochs, train_accs, val_accs):
