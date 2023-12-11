@@ -139,7 +139,7 @@ def plot(epochs, plottables, name='', ylim=None):
     plt.savefig('%s.pdf' % (name), bbox_inches='tight')
 
 
-def main():
+def main():#ola
     parser = argparse.ArgumentParser()
     parser.add_argument('model',
                         choices=['logistic_regression', 'mlp'],
