@@ -127,35 +127,6 @@ class MLP(object):
         n_possible = y.shape[0]
         return n_correct / n_possible
 
-    def backward(self, x, y, output, hiddens):
-        num_layers = len(self.W)
-
-        max = np.max(output)
-        probs = np.exp(output - max) / np.sum(np.exp(output - max))
-        grad_z = probs - y  
-        
-        grad_weights = []
-        grad_biases = []
-        
-        # Backpropagate gradient computations 
-        for i in range(num_layers-1, -1, -1):
-            
-            # Gradient of hidden parameters.
-            h = x if i == 0 else hiddens[i-1]
-            grad_weights.append(grad_z[:, None].dot(h[:, None].T))
-            grad_biases.append(grad_z)
-
-            # Gradient of hidden layer below.
-            grad_h = self.W[i].T.dot(grad_z)
-
-            # Gradient of hidden layer below before activation.
-            grad_z = grad_h * (1-h**2)   # Grad of loss wrt z3.
-
-        # Making gradient vectors have the correct order
-        grad_weights.reverse()
-        grad_biases.reverse()
-        return grad_weights, grad_biases
-
     def forward(self, x):
         num_layers = len(self.W)
         # Activation function (relu)
@@ -178,6 +149,35 @@ class MLP(object):
         probs = np.exp(output - max) / np.sum(np.exp(output - max))
         loss = -y.dot(np.log(probs))
         return loss
+    
+    def backward(self, x, y, output, hiddens):
+        num_layers = len(self.W)
+
+        max = np.max(output)
+        probs = np.exp(output - max) / np.sum(np.exp(output - max))
+        grad_z = probs - y  
+        
+        grad_weights = []
+        grad_biases = []
+        
+        # Backpropagate gradient computations 
+        for i in range(num_layers-1, -1, -1):
+            
+            # Gradient of hidden parameters.
+            h = x if i == 0 else hiddens[i-1]
+            grad_weights.append(grad_z[:, None].dot(h[:, None].T))
+            grad_biases.append(grad_z)
+
+            # Gradient of hidden layer below.
+            grad_h = self.W[i].T.dot(grad_z)
+
+            # Gradient of hidden layer below before activation.
+            grad_z = grad_h * np.where(h < 0, 0, 1)   # Grad of loss wrt z3.
+        
+        # Making gradient vectors have the correct order
+        grad_weights.reverse()
+        grad_biases.reverse()
+        return grad_weights, grad_biases
 
     def train_epoch(self, X, y, learning_rate):
         """
