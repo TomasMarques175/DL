@@ -60,7 +60,7 @@ class Perceptron(LinearModel):
 
 
 class LogisticRegression(LinearModel):
-    def update_weight(self, x_i, y_i, learning_rate):
+    def update_weight(self, x_i, y_i, learning_rate=0.001):
         """
         x_i (n_features): a single training example
         y_i: the gold label for that example
@@ -141,6 +141,8 @@ class MLP(object):
         #compute output
         output = z
 
+        hiddens = np.array(hiddens)
+
         return output, hiddens
 
     def compute_loss(self, output, y):
@@ -149,7 +151,7 @@ class MLP(object):
         probs = np.exp(output - max_output) / np.sum(np.exp(output - max_output))
         loss = -y.dot(np.log(probs))
         return loss
-    
+
     def backward(self, x, y, output, hiddens):
         num_layers = len(self.W)
 
@@ -179,14 +181,17 @@ class MLP(object):
         grad_biases.reverse()
         return grad_weights, grad_biases
 
-    def train_epoch(self, X, y, learning_rate):
+    def train_epoch(self, X, y, learning_rate=0.001):
+
         """
         Dont forget to return the loss of the epoch.
         """
+
         num_layers = len(self.W)
-        print(num_layers)
         total_loss = 0
+
         # For each observation and target
+        i = 0
         for x, y in zip(X, y):
             # One-hot encode true label (num_labels x 1).
             y_one_hot = np.zeros((np.size(self.W[-1], 0),1))
@@ -195,6 +200,12 @@ class MLP(object):
 
             # Comoute forward pass
             output, hiddens = self.forward(x)
+
+            if i == 0:
+                print(output.shape)
+                print(y_one_hot.shape)
+                print(hiddens[0].shape)
+                i += 1
 
             # Compute Loss and Update total loss
             loss = self.compute_loss(output, y_one_hot)
@@ -208,6 +219,52 @@ class MLP(object):
                 self.W[i] -= learning_rate*grad_weights[i]
                 self.b[i] -= learning_rate*grad_biases[i]
         return total_loss / len(X)
+
+    # def train_epoch(self, X, y, learning_rate=0.001):
+    #     total_loss = 0
+    #     for x_i, y_i in zip(X, y):
+
+    #         h0 = x_i
+    #         y_one_hot = np.zeros(self.B[2].shape[0])
+    #         y_one_hot[y_i] = 1
+
+    #         z1 = self.W1.dot(h0) + self.B[1]
+    #         h1 = np.maximum(0, z1)  # ReLU
+
+    #         z2 = self.W2.dot(h1) + self.B[2]
+
+    #         # Numerically stable softmax
+    #         max_z2 = np.max(z2)
+    #         p = np.exp(z2 - max_z2) / np.sum(np.exp(z2 - max_z2))
+
+    #         # Loss
+    #         loss = -y_one_hot.dot(np.log(p))
+    #         total_loss += loss
+
+    #         # Backpropagation
+    #         grad_z2 = p - y_one_hot  # Grad of loss wrt p
+
+    #         # Gradient of hidden parameters.
+    #         grad_W2 = grad_z2[:, None].dot(h1[:, None].T)
+    #         grad_b2 = grad_z2
+
+    #         # Gradient of hidden layer below.
+    #         grad_h1 = self.W2.T.dot(grad_z2)
+
+    #         # Gradient of hidden layer below before activation.
+    #         grad_z1 = np.where(z1 > 0, grad_h1, 0)
+
+    #         # Gradient of hidden parameters.
+    #         grad_W1 = grad_z1[:, None].dot(h0[:, None].T)
+    #         grad_b1 = grad_z1
+
+    #         # Update weights
+    #         self.W[1] -= learning_rate*grad_W1
+    #         self.B[1] -= learning_rate*grad_b1
+    #         self.W[2] -= learning_rate*grad_W2
+    #         self.B[2] -= learning_rate*grad_b2
+
+    #     return total_loss/X.shape[0]
 
 
 def plot(epochs, train_accs, val_accs):
@@ -246,9 +303,18 @@ def main():
 
     add_bias = opt.model != "mlp"
     data = utils.load_oct_data(bias=add_bias)
+
     train_X, train_y = data["train"]
+    # print(f"train_X shape: {train_X.shape}")
+    train_X, train_y = train_X[:5000], train_y[:5000]
+
     dev_X, dev_y = data["dev"]
+    # print(f"dev_X shape: {dev_X.shape}")
+    dev_X, dev_y = dev_X[:100], dev_y[:100]
+
     test_X, test_y = data["test"]
+    # print(f"test_X shape: {test_X.shape}")
+
     n_classes = np.unique(train_y).size
     n_feats = train_X.shape[1]
 
