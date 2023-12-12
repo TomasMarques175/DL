@@ -201,12 +201,6 @@ class MLP(object):
             # Comoute forward pass
             output, hiddens = self.forward(x)
 
-            if i == 0:
-                print(output.shape)
-                print(y_one_hot.shape)
-                print(hiddens[0].shape)
-                i += 1
-
             # Compute Loss and Update total loss
             loss = self.compute_loss(output, y_one_hot)
             total_loss += loss
@@ -256,18 +250,11 @@ def main():
     utils.configure_seed(seed=42)
 
     add_bias = opt.model != "mlp"
+
     data = utils.load_oct_data(bias=add_bias)
-
     train_X, train_y = data["train"]
-    # print(f"train_X shape: {train_X.shape}")
-    train_X, train_y = train_X[:5000], train_y[:5000]
-
     dev_X, dev_y = data["dev"]
-    # print(f"dev_X shape: {dev_X.shape}")
-    dev_X, dev_y = dev_X[:100], dev_y[:100]
-
     test_X, test_y = data["test"]
-    # print(f"test_X shape: {test_X.shape}")
 
     n_classes = np.unique(train_y).size
     n_feats = train_X.shape[1]

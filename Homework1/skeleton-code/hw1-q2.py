@@ -12,7 +12,6 @@ from matplotlib import pyplot as plt
 import utils
 
 
-# Q2.1
 class LogisticRegression(nn.Module):
 
     def __init__(self, n_classes, n_features, **kwargs):
@@ -26,7 +25,11 @@ class LogisticRegression(nn.Module):
         pytorch to make weights and biases, have a look at
         https://pytorch.org/docs/stable/nn.html
         """
+
         super().__init__()
+        self.layer = nn.Linear(n_features, n_classes, bias=True)
+        self.activation = nn.Sigmoid()
+        
         # In a pytorch module, the declarations of layers needs to come after
         # the super __init__ line, otherwise the magic doesn't work.
 
@@ -44,7 +47,11 @@ class LogisticRegression(nn.Module):
         forward pass -- this is enough for it to figure out how to do the
         backward pass.
         """
-        raise NotImplementedError
+
+        Z = self.layer(x)
+        P = self.activation(Z)
+
+        return P
 
 
 # Q2.2
@@ -65,8 +72,27 @@ class FeedforwardNetwork(nn.Module):
         includes modules for several activation functions and dropout as well.
         """
         super().__init__()
-        # Implement me!
-        raise NotImplementedError
+        self.layers = nn.ModuleList()
+        self.activation_type = activation_type
+        self.dropout = dropout
+        self.layers.append(nn.Linear(n_features, hidden_size, bias=True))
+        if self.activation_type == "tanh":
+            self.layers.append(nn.Tanh())
+        elif self.activation_type == "relu":
+            self.layers.append(nn.ReLU())
+        else:
+            raise ValueError(f"Unknown activation type {self.activation_type}")
+        self.layers.append(nn.Dropout(p=self.dropout))
+        for _ in range(layers - 1):
+            self.layers.append(nn.Linear(hidden_size, hidden_size, bias=True))
+            if self.activation_type == "tanh":
+                self.layers.append(nn.Tanh())
+            elif self.activation_type == "relu":
+                self.layers.append(nn.ReLU())
+            else:
+                raise ValueError(f"Unknown activation type {self.activation_type}")
+            self.layers.append(nn.Dropout(p=self.dropout))
+        self.layers.append(nn.Linear(hidden_size, n_classes, bias=True))
 
     def forward(self, x, **kwargs):
         """
@@ -76,7 +102,9 @@ class FeedforwardNetwork(nn.Module):
         the output logits from x. This will include using various hidden
         layers, pointwise nonlinear functions, and dropout.
         """
-        raise NotImplementedError
+        for layer in self.layers:
+            x = layer(x)
+        return x
 
 
 def train_batch(X, y, model, optimizer, criterion, **kwargs):
@@ -97,7 +125,19 @@ def train_batch(X, y, model, optimizer, criterion, **kwargs):
     This function should return the loss (tip: call loss.item()) to get the
     loss as a numerical value that is not part of the computation graph.
     """
-    raise NotImplementedError
+    # clear the gradients
+    optimizer.zero_grad()
+    # compute the model output
+    yhat = model(X)
+    # calculate loss
+    loss = criterion(yhat, y)
+    # credit assignment
+    loss.backward()
+    # update model weights
+    optimizer.step()
+
+    return loss.item()
+
 
 
 def predict(model, X):
@@ -140,6 +180,37 @@ def plot(epochs, plottables, name='', ylim=None):
 
 
 def main():
+    # # Check if a GPU is available
+    # if torch.cuda.is_available():
+    #     # Set the default device to GPU
+    #     device = torch.device('cuda')
+    # else:
+    #     # If GPU is not available, use CPU
+    #     device = torch.device('cpu')
+
+    # # Set the default device for tensors
+    # torch.set_default_tensor_type('torch.cuda.FloatTensor' if torch.cuda.is_available() else 'torch.FloatTensor')
+    
+
+    my_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print("my_device:", my_device)
+
+    print(f"torch.version.cuda: {torch.version.cuda}") #check cuda version
+    print(f"torch.version: {torch.__version__}") #check pytorch version
+    print(f"torch.cuda.is_available: {torch.cuda.is_available()}") #check if cuda is available
+    print(f"torch.cuda.device_count: {torch.cuda.device_count()}") #check number of gpus
+    print(f"torch.cuda.get_device_name(0): {torch.cuda.get_device_name(0)}") #get name of gpu
+    print(f"torch.cuda.current_device: {torch.cuda.current_device()}") #get current device
+    print(f"torch.cuda.memory_allocated: {torch.cuda.memory_allocated()}") #get current memory allocated
+    print(f"torch.cuda.memory_reserved: {torch.cuda.memory_reserved()}") #get current memory cached
+
+    x = torch.eye(3)  # data is on the cpu 
+    print("By default device tensor is stored on:", x.device)
+
+    # you can move data to the GPU by doing .to(device)
+    x=x.to(my_device)  # data is moved to my_device
+    print("\nDevice tensor is now stored on:", x.device) #it will still be cpu if you don't have gpu
+
     parser = argparse.ArgumentParser()
     parser.add_argument('model',
                         choices=['logistic_regression', 'mlp'],
@@ -161,7 +232,6 @@ def main():
     opt = parser.parse_args()
 
     utils.configure_seed(seed=42)
-
     data = utils.load_oct_data()
     dataset = utils.ClassificationDataset(data)
     train_dataloader = DataLoader(
