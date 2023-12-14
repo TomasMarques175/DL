@@ -223,6 +223,7 @@ def plot(epochs, train_accs, val_accs):
     plt.legend()
     plt.show()
 
+
 def plot_loss(epochs, loss):
     plt.xlabel('Epoch')
     plt.ylabel('Loss')

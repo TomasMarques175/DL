@@ -76,22 +76,23 @@ class FeedforwardNetwork(nn.Module):
         self.activation_type = activation_type
         self.dropout = dropout
         self.layers.append(nn.Linear(n_features, hidden_size, bias=True))
+
         if self.activation_type == "tanh":
             self.layers.append(nn.Tanh())
         elif self.activation_type == "relu":
             self.layers.append(nn.ReLU())
-        else:
-            raise ValueError(f"Unknown activation type {self.activation_type}")
+        
         self.layers.append(nn.Dropout(p=self.dropout))
         for _ in range(layers - 1):
             self.layers.append(nn.Linear(hidden_size, hidden_size, bias=True))
+
             if self.activation_type == "tanh":
                 self.layers.append(nn.Tanh())
             elif self.activation_type == "relu":
                 self.layers.append(nn.ReLU())
-            else:
-                raise ValueError(f"Unknown activation type {self.activation_type}")
+
             self.layers.append(nn.Dropout(p=self.dropout))
+
         self.layers.append(nn.Linear(hidden_size, n_classes, bias=True))
 
     def forward(self, x, **kwargs):
@@ -139,7 +140,6 @@ def train_batch(X, y, model, optimizer, criterion, **kwargs):
     return loss.item()
 
 
-
 def predict(model, X):
     """X (n_examples x n_features)"""
     scores = model(X)  # (n_examples x n_classes)
@@ -180,17 +180,17 @@ def plot(epochs, plottables, name='', ylim=None):
 
 
 def main():
-    # # Check if a GPU is available
-    # if torch.cuda.is_available():
-    #     # Set the default device to GPU
-    #     device = torch.device('cuda')
-    # else:
-    #     # If GPU is not available, use CPU
-    #     device = torch.device('cpu')
 
-    # # Set the default device for tensors
-    # torch.set_default_tensor_type('torch.cuda.FloatTensor' if torch.cuda.is_available() else 'torch.FloatTensor')
-    
+    # Check if a GPU is available
+    if torch.cuda.is_available():
+        # Set the default device to GPU
+        device = torch.device('cuda:0')
+    else:
+        # If GPU is not available, use CPU
+        device = torch.device('cpu')
+
+    # Set the default device for PyTorch operations to the GPU
+    torch.cuda.set_device(device)
 
     my_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("my_device:", my_device)
@@ -239,6 +239,10 @@ def main():
 
     dev_X, dev_y = dataset.dev_X, dataset.dev_y
     test_X, test_y = dataset.test_X, dataset.test_y
+
+
+    dev_X, dev_y = dev_X, dev_y
+    test_X, test_y = test_X, test_y
 
     n_classes = torch.unique(dataset.y).shape[0]  # 10
     n_feats = dataset.X.shape[1]
@@ -317,9 +321,9 @@ def main():
         ylim = (0., 1.2)
     else:
         raise ValueError(f"Unknown model {opt.model}")
-    plot(epochs, losses, name=f'{opt.model}-training-loss-{config}', ylim=ylim)
+    plot(epochs, losses, name=f'Figures/{opt.model}-training-loss-{config}', ylim=ylim)
     accuracy = { "Valid Accuracy": valid_accs }
-    plot(epochs, accuracy, name=f'{opt.model}-validation-accuracy-{config}', ylim=(0., 1.))
+    plot(epochs, accuracy, name=f'Figures/{opt.model}-validation-accuracy-{config}', ylim=(0., 1.))
 
 
 if __name__ == '__main__':
