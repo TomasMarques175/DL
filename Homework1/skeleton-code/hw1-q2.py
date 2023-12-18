@@ -28,8 +28,7 @@ class LogisticRegression(nn.Module):
 
         super().__init__()
         self.layer = nn.Linear(n_features, n_classes, bias=True)
-        self.activation = nn.Sigmoid()
-        
+
         # In a pytorch module, the declarations of layers needs to come after
         # the super __init__ line, otherwise the magic doesn't work.
 
@@ -49,9 +48,7 @@ class LogisticRegression(nn.Module):
         """
 
         Z = self.layer(x)
-        P = self.activation(Z)
-
-        return P
+        return Z
 
 
 # Q2.2
@@ -181,35 +178,35 @@ def plot(epochs, plottables, name='', ylim=None):
 
 def main():
 
-    # Check if a GPU is available
-    if torch.cuda.is_available():
-        # Set the default device to GPU
-        device = torch.device('cuda:0')
-    else:
-        # If GPU is not available, use CPU
-        device = torch.device('cpu')
+    # # Check if a GPU is available
+    # if torch.cuda.is_available():
+    #     # Set the default device to GPU
+    #     device = torch.device('cuda:0')
+    # else:
+    #     # If GPU is not available, use CPU
+    #     device = torch.device('cpu')
 
-    # Set the default device for PyTorch operations to the GPU
-    torch.cuda.set_device(device)
+    # # Set the default device for PyTorch operations to the GPU
+    # torch.cuda.set_device(device)
 
-    my_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    print("my_device:", my_device)
+    # my_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # print("my_device:", my_device)
 
-    print(f"torch.version.cuda: {torch.version.cuda}") #check cuda version
-    print(f"torch.version: {torch.__version__}") #check pytorch version
-    print(f"torch.cuda.is_available: {torch.cuda.is_available()}") #check if cuda is available
-    print(f"torch.cuda.device_count: {torch.cuda.device_count()}") #check number of gpus
-    print(f"torch.cuda.get_device_name(0): {torch.cuda.get_device_name(0)}") #get name of gpu
-    print(f"torch.cuda.current_device: {torch.cuda.current_device()}") #get current device
-    print(f"torch.cuda.memory_allocated: {torch.cuda.memory_allocated()}") #get current memory allocated
-    print(f"torch.cuda.memory_reserved: {torch.cuda.memory_reserved()}") #get current memory cached
+    # print(f"torch.version.cuda: {torch.version.cuda}") #check cuda version
+    # print(f"torch.version: {torch.__version__}") #check pytorch version
+    # print(f"torch.cuda.is_available: {torch.cuda.is_available()}") #check if cuda is available
+    # print(f"torch.cuda.device_count: {torch.cuda.device_count()}") #check number of gpus
+    # print(f"torch.cuda.get_device_name(0): {torch.cuda.get_device_name(0)}") #get name of gpu
+    # print(f"torch.cuda.current_device: {torch.cuda.current_device()}") #get current device
+    # print(f"torch.cuda.memory_allocated: {torch.cuda.memory_allocated()}") #get current memory allocated
+    # print(f"torch.cuda.memory_reserved: {torch.cuda.memory_reserved()}") #get current memory cached
 
-    x = torch.eye(3)  # data is on the cpu 
-    print("By default device tensor is stored on:", x.device)
+    # x = torch.eye(3) # data is on the cpu
+    # print("By default device tensor is stored on:", x.device)
 
-    # you can move data to the GPU by doing .to(device)
-    x=x.to(my_device)  # data is moved to my_device
-    print("\nDevice tensor is now stored on:", x.device) #it will still be cpu if you don't have gpu
+    # # you can move data to the GPU by doing .to(device)
+    # x=x.to(my_device)  # data is moved to my_device
+    # print("\nDevice tensor is now stored on:", x.device) #it will still be cpu if you don't have gpu
 
     parser = argparse.ArgumentParser()
     parser.add_argument('model',
@@ -224,7 +221,7 @@ def main():
     parser.add_argument('-l2_decay', type=float, default=0)
     parser.add_argument('-hidden_size', type=int, default=100)
     parser.add_argument('-layers', type=int, default=1)
-    parser.add_argument('-dropout', type=float, default=0.3)
+    parser.add_argument('-dropout', type=float, default=0.0)
     parser.add_argument('-activation',
                         choices=['tanh', 'relu'], default='relu')
     parser.add_argument('-optimizer',
