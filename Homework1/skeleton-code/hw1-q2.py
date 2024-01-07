@@ -1,0 +1,327 @@
+#!/usr/bin/env python
+
+# Deep Learning Homework 1
+
+import argparse
+
+import torch
+from torch.utils.data import DataLoader
+import torch.nn as nn
+from matplotlib import pyplot as plt
+
+import utils
+
+
+class LogisticRegression(nn.Module):
+
+    def __init__(self, n_classes, n_features, **kwargs):
+        """
+        n_classes (int)
+        n_features (int)
+
+        The __init__ should be used to declare what kind of layers and other
+        parameters the module has. For example, a logistic regression module
+        has a weight matrix and bias vector. For an idea of how to use
+        pytorch to make weights and biases, have a look at
+        https://pytorch.org/docs/stable/nn.html
+        """
+
+        super().__init__()
+        self.layer = nn.Linear(n_features, n_classes, bias=True)
+
+        # In a pytorch module, the declarations of layers needs to come after
+        # the super __init__ line, otherwise the magic doesn't work.
+
+    def forward(self, x, **kwargs):
+        """
+        x (batch_size x n_features): a batch of training examples
+
+        Every subclass of nn.Module needs to have a forward() method. forward()
+        describes how the module computes the forward pass. In a log-lineear
+        model like this, for example, forward() needs to compute the logits
+        y = Wx + b, and return y (you don't need to worry about taking the
+        softmax of y because nn.CrossEntropyLoss does that for you).
+
+        One nice thing about pytorch is that you only need to define the
+        forward pass -- this is enough for it to figure out how to do the
+        backward pass.
+        """
+
+        Z = self.layer(x)
+        return Z
+
+
+# Q2.2
+class FeedforwardNetwork(nn.Module):
+    def __init__(
+            self, n_classes, n_features, hidden_size, layers,
+            activation_type, dropout, **kwargs):
+        """
+        n_classes (int)
+        n_features (int)
+        hidden_size (int)
+        layers (int)
+        activation_type (str)
+        dropout (float): dropout probability
+
+        As in logistic regression, the __init__ here defines a bunch of
+        attributes that each FeedforwardNetwork instance has. Note that nn
+        includes modules for several activation functions and dropout as well.
+        """
+        super().__init__()
+        self.layers = nn.ModuleList()
+        self.activation_type = activation_type
+        self.dropout = dropout
+        self.layers.append(nn.Linear(n_features, hidden_size, bias=True))
+
+        if self.activation_type == "tanh":
+            self.layers.append(nn.Tanh())
+        elif self.activation_type == "relu":
+            self.layers.append(nn.ReLU())
+        
+        self.layers.append(nn.Dropout(p=self.dropout))
+        for _ in range(layers - 1):
+            self.layers.append(nn.Linear(hidden_size, hidden_size, bias=True))
+
+            if self.activation_type == "tanh":
+                self.layers.append(nn.Tanh())
+            elif self.activation_type == "relu":
+                self.layers.append(nn.ReLU())
+
+            self.layers.append(nn.Dropout(p=self.dropout))
+
+        self.layers.append(nn.Linear(hidden_size, n_classes, bias=True))
+
+    def forward(self, x, **kwargs):
+        """
+        x (batch_size x n_features): a batch of training examples
+
+        This method needs to perform all the computation needed to compute
+        the output logits from x. This will include using various hidden
+        layers, pointwise nonlinear functions, and dropout.
+        """
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+
+def train_batch(X, y, model, optimizer, criterion, **kwargs):
+    """
+    X (n_examples x n_features)
+    y (n_examples): gold labels
+    model: a PyTorch defined model
+    optimizer: optimizer used in gradient step
+    criterion: loss function
+
+    To train a batch, the model needs to predict outputs for X, compute the
+    loss between these predictions and the "gold" labels y using the criterion,
+    and compute the gradient of the loss with respect to the model parameters.
+
+    Check out https://pytorch.org/docs/stable/optim.html for examples of how
+    to use an optimizer object to update the parameters.
+
+    This function should return the loss (tip: call loss.item()) to get the
+    loss as a numerical value that is not part of the computation graph.
+    """
+    # clear the gradients
+    optimizer.zero_grad()
+    # compute the model output
+    yhat = model(X)
+    # calculate loss
+    loss = criterion(yhat, y)
+    # credit assignment
+    loss.backward()
+    # update model weights
+    optimizer.step()
+
+    return loss.item()
+
+
+def predict(model, X):
+    """X (n_examples x n_features)"""
+    scores = model(X)  # (n_examples x n_classes)
+    predicted_labels = scores.argmax(dim=-1)  # (n_examples)
+    return predicted_labels
+
+
+@torch.no_grad()
+def evaluate(model, X, y, criterion):
+    """
+    X (n_examples x n_features)
+    y (n_examples): gold labels
+    """
+    model.eval()
+    logits = model(X)
+    loss = criterion(logits, y)
+    loss = loss.item()
+    y_hat = logits.argmax(dim=-1)
+    n_correct = (y == y_hat).sum().item()
+    n_possible = float(y.shape[0])
+    model.train()
+    return loss, n_correct / n_possible
+
+
+def plot(epochs, plottables, name='', ylim=None):
+    """Plot the plottables over the epochs.
+    
+    Plottables is a dictionary mapping labels to lists of values.
+    """
+    plt.clf()
+    plt.xlabel('Epoch')
+    for label, plottable in plottables.items():
+        plt.plot(epochs, plottable, label=label)
+    plt.legend()
+    if ylim:
+        plt.ylim(ylim)
+    plt.savefig('%s.pdf' % (name), bbox_inches='tight')
+
+
+def main():
+
+    # # Check if a GPU is available
+    # if torch.cuda.is_available():
+    #     # Set the default device to GPU
+    #     device = torch.device('cuda:0')
+    # else:
+    #     # If GPU is not available, use CPU
+    #     device = torch.device('cpu')
+
+    # # Set the default device for PyTorch operations to the GPU
+    # torch.cuda.set_device(device)
+
+    # my_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # print("my_device:", my_device)
+
+    # print(f"torch.version.cuda: {torch.version.cuda}") #check cuda version
+    # print(f"torch.version: {torch.__version__}") #check pytorch version
+    # print(f"torch.cuda.is_available: {torch.cuda.is_available()}") #check if cuda is available
+    # print(f"torch.cuda.device_count: {torch.cuda.device_count()}") #check number of gpus
+    # print(f"torch.cuda.get_device_name(0): {torch.cuda.get_device_name(0)}") #get name of gpu
+    # print(f"torch.cuda.current_device: {torch.cuda.current_device()}") #get current device
+    # print(f"torch.cuda.memory_allocated: {torch.cuda.memory_allocated()}") #get current memory allocated
+    # print(f"torch.cuda.memory_reserved: {torch.cuda.memory_reserved()}") #get current memory cached
+
+    # x = torch.eye(3) # data is on the cpu
+    # print("By default device tensor is stored on:", x.device)
+
+    # # you can move data to the GPU by doing .to(device)
+    # x=x.to(my_device)  # data is moved to my_device
+    # print("\nDevice tensor is now stored on:", x.device) #it will still be cpu if you don't have gpu
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('model',
+                        choices=['logistic_regression', 'mlp'],
+                        help="Which model should the script run?")
+    parser.add_argument('-epochs', default=20, type=int,
+                        help="""Number of epochs to train for. You should not
+                        need to change this value for your plots.""")
+    parser.add_argument('-batch_size', default=1, type=int,
+                        help="Size of training batch.")
+    parser.add_argument('-learning_rate', type=float, default=0.01)
+    parser.add_argument('-l2_decay', type=float, default=0)
+    parser.add_argument('-hidden_size', type=int, default=100)
+    parser.add_argument('-layers', type=int, default=1)
+    parser.add_argument('-dropout', type=float, default=0.0)
+    parser.add_argument('-activation',
+                        choices=['tanh', 'relu'], default='relu')
+    parser.add_argument('-optimizer',
+                        choices=['sgd', 'adam'], default='sgd')
+    opt = parser.parse_args()
+
+    utils.configure_seed(seed=42)
+    data = utils.load_oct_data()
+    dataset = utils.ClassificationDataset(data)
+    train_dataloader = DataLoader(
+        dataset, batch_size=opt.batch_size, shuffle=True, generator=torch.Generator().manual_seed(42))
+
+    dev_X, dev_y = dataset.dev_X, dataset.dev_y
+    test_X, test_y = dataset.test_X, dataset.test_y
+
+
+    dev_X, dev_y = dev_X, dev_y
+    test_X, test_y = test_X, test_y
+
+    n_classes = torch.unique(dataset.y).shape[0]  # 10
+    n_feats = dataset.X.shape[1]
+
+    # initialize the model
+    if opt.model == 'logistic_regression':
+        model = LogisticRegression(n_classes, n_feats)
+    else:
+        model = FeedforwardNetwork(
+            n_classes,
+            n_feats,
+            opt.hidden_size,
+            opt.layers,
+            opt.activation,
+            opt.dropout
+        )
+
+    # get an optimizer
+    optims = {"adam": torch.optim.Adam, "sgd": torch.optim.SGD}
+
+    optim_cls = optims[opt.optimizer]
+    optimizer = optim_cls(
+        model.parameters(),
+        lr=opt.learning_rate,
+        weight_decay=opt.l2_decay)
+
+    # get a loss criterion
+    criterion = nn.CrossEntropyLoss()
+
+    # training loop
+    epochs = torch.arange(1, opt.epochs + 1)
+    train_losses = []
+    valid_losses = []
+    valid_accs = []
+    for ii in epochs:
+        print('Training epoch {}'.format(ii))
+        epoch_train_losses = []
+        for X_batch, y_batch in train_dataloader:
+            loss = train_batch(
+                X_batch, y_batch, model, optimizer, criterion)
+            epoch_train_losses.append(loss)
+
+        epoch_train_loss = torch.tensor(epoch_train_losses).mean().item()
+        val_loss, val_acc = evaluate(model, dev_X, dev_y, criterion)
+
+        print('Training loss: %.4f' % epoch_train_loss)
+        print('Valid acc: %.4f' % val_acc)
+
+        train_losses.append(epoch_train_loss)
+        valid_losses.append(val_loss)
+        valid_accs.append(val_acc)
+
+    _, test_acc = evaluate(model, test_X, test_y, criterion)
+    print('Final Test acc: %.4f' % (test_acc))
+    # plot
+    if opt.model == "logistic_regression":
+        config = (
+            f"batch-{opt.batch_size}-lr-{opt.learning_rate}-epochs-{opt.epochs}-"
+            f"l2-{opt.l2_decay}-opt-{opt.optimizer}"
+        )
+    else:
+        config = (
+            f"batch-{opt.batch_size}-lr-{opt.learning_rate}-epochs-{opt.epochs}-"
+            f"hidden-{opt.hidden_size}-dropout-{opt.dropout}-l2-{opt.l2_decay}-"
+            f"layers-{opt.layers}-act-{opt.activation}-opt-{opt.optimizer}"
+        )
+
+    losses = {
+        "Train Loss": train_losses,
+        "Valid Loss": valid_losses,
+    }
+    # Choose ylim based on model since logistic regression has higher loss
+    if opt.model == "logistic_regression":
+        ylim = (0., 1.6)
+    elif opt.model == "mlp":
+        ylim = (0., 1.2)
+    else:
+        raise ValueError(f"Unknown model {opt.model}")
+    plot(epochs, losses, name=f'Figures/{opt.model}-training-loss-{config}', ylim=ylim)
+    accuracy = { "Valid Accuracy": valid_accs }
+    plot(epochs, accuracy, name=f'Figures/{opt.model}-validation-accuracy-{config}', ylim=(0., 1.))
+
+
+if __name__ == '__main__':
+    main()
